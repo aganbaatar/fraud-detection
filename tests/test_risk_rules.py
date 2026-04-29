@@ -164,11 +164,64 @@ def test_no_prior_chargebacks_adds_nothing():
 
 
 # ---------------------------------------------------------------------------
+# Threshold boundary conditions — just-below values must not cross the tier
+# ---------------------------------------------------------------------------
+
+def test_device_risk_69_does_not_trigger_high_branch():
+    score_69 = score_transaction(base_tx(device_risk_score=69))
+    score_70 = score_transaction(base_tx(device_risk_score=70))
+    assert score_70 - score_69 == 15  # 25 - 10: crosses from medium to high tier
+
+
+def test_device_risk_39_does_not_trigger_medium_branch():
+    score_39 = score_transaction(base_tx(device_risk_score=39))
+    score_40 = score_transaction(base_tx(device_risk_score=40))
+    assert score_40 - score_39 == 10
+
+
+def test_velocity_5_does_not_trigger_high_branch():
+    score_5 = score_transaction(base_tx(velocity_24h=5))
+    score_6 = score_transaction(base_tx(velocity_24h=6))
+    assert score_6 - score_5 == 15  # 20 - 5: crosses from medium to high tier
+
+
+def test_velocity_2_does_not_trigger_medium_branch():
+    score_2 = score_transaction(base_tx(velocity_24h=2))
+    score_3 = score_transaction(base_tx(velocity_24h=3))
+    assert score_3 - score_2 == 5
+
+
+def test_amount_999_does_not_trigger_large_branch():
+    score_999 = score_transaction(base_tx(amount_usd=999))
+    score_1000 = score_transaction(base_tx(amount_usd=1000))
+    assert score_1000 - score_999 == 15  # 25 - 10: crosses from medium to large tier
+
+
+def test_amount_499_does_not_trigger_medium_branch():
+    score_499 = score_transaction(base_tx(amount_usd=499))
+    score_500 = score_transaction(base_tx(amount_usd=500))
+    assert score_500 - score_499 == 10
+
+
+def test_failed_logins_4_does_not_trigger_high_branch():
+    score_4 = score_transaction(base_tx(failed_logins_24h=4))
+    score_5 = score_transaction(base_tx(failed_logins_24h=5))
+    assert score_5 - score_4 == 10  # 20 - 10: crosses from medium to high tier
+
+
+def test_failed_logins_1_does_not_trigger_medium_branch():
+    score_1 = score_transaction(base_tx(failed_logins_24h=1))
+    score_2 = score_transaction(base_tx(failed_logins_24h=2))
+    assert score_2 - score_1 == 10
+
+
+# ---------------------------------------------------------------------------
 # Score boundaries
 # ---------------------------------------------------------------------------
 
-def test_score_never_below_zero():
-    assert score_transaction(base_tx()) >= 0
+def test_score_is_zero_for_minimal_transaction():
+    # All signals at their lowest — no points should be added
+    assert score_transaction(base_tx()) == 0
 
 
 def test_score_never_above_100():
@@ -180,7 +233,7 @@ def test_score_never_above_100():
         failed_logins_24h=10,
         prior_chargebacks=5,
     )
-    assert score_transaction(tx) <= 100
+    assert score_transaction(tx) == 100
 
 
 # ---------------------------------------------------------------------------
